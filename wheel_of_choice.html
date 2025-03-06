@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheel of Choice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        input, button {
+            margin: 10px;
+            padding: 8px;
+            font-size: 16px;
+            width: 70%;
+            max-width: 250px;
+        }
+        #optionsList {
+            list-style: none;
+            padding: 0;
+            width: 80%;
+            max-width: 300px;
+        }
+        .option {
+            margin: 5px;
+            padding: 10px;
+            background-color: #eee;
+            border-radius: 4px;
+            overflow-wrap: break-word;
+        }
+        #wheelContainer {
+            margin: 20px auto;
+            position: relative;
+            width: 80%;
+            max-width: 300px;
+            height: auto;
+            aspect-ratio: 1; /* Maintains a square shape for the wheel */
+        }
+        #wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            transition: transform 4s ease-out;
+        }
+        #arrow {
+            position: absolute;
+            top: -20px; /* Adjusted to fit above the wheel on mobile */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 20px solid black;
+            z-index: 10;
+        }
+        #spinButton {
+            display: block;
+            margin: 20px auto;
+            width: 70%;
+            max-width: 200px;
+        }
+        #result {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+            width: 80%;
+            max-width: 300px;
+        }
+        #instructions {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+            width: 80%;
+            max-width: 300px;
+            text-align: left;
+        }
+        #instructions ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+        #instructions li {
+            margin: 5px 0;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            input, button {
+                font-size: 14px;
+                width: 80%;
+            }
+            #optionsList, #result, #instructions {
+                width: 90%;
+            }
+            #wheelContainer {
+                width: 70%;
+                max-width: 250px;
+            }
+            #spinButton {
+                width: 80%;
+            }
+            #instructions {
+                font-size: 12px;
+            }
+            #instructions ul {
+                padding-left: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wheel of Choice</h1>
+        <div id="instructions">
+            <ul>
+                <li>Enter options (e.g., choices or names) and click "Add Option."</li>
+                <li>Add at least 2 options, then click "Spin the Wheel" to randomly select one.</li>
+                <li>Press Enter to add options quickly.</li>
+            </ul>
+        </div>
+        <div>
+            <input type="text" id="optionInput" placeholder="Enter an option">
+            <button onclick="addOption()">Add Option</button>
+        </div>
+        <ul id="optionsList"></ul>
+        <div id="wheelContainer">
+            <canvas id="wheel" width="300" height="300"></canvas>
+            <div id="arrow"></div>
+        </div>
+        <button id="spinButton" onclick="spinWheel()" disabled>Spin the Wheel</button>
+        <p id="result"></p>
+    </div>
+
+    <script>
+        let options = [];
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        let isSpinning = false;
+
+        // Dynamically adjust canvas size based on container
+        function resizeCanvas() {
+            const wheelContainer = document.getElementById('wheelContainer');
+            const size = Math.min(wheelContainer.offsetWidth, 300); // Cap at 300px
+            canvas.width = size;
+            canvas.height = size;
+            drawWheel();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // Initial resize
+
+        function addOption() {
+            const input = document.getElementById('optionInput');
+            const option = input.value.trim();
+            
+            if (option && !options.includes(option)) {
+                options.push(option);
+                updateOptionsList();
+                drawWheel();
+                input.value = '';
+                document.getElementById('spinButton').disabled = options.length < 2;
+            }
+        }
+
+        function updateOptionsList() {
+            const list = document.getElementById('optionsList');
+            list.innerHTML = '';
+            options.forEach(option => {
+                const li = document.createElement('li');
+                li.textContent = option;
+                li.className = 'option';
+                list.appendChild(li);
+            });
+        }
+
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(canvas.width, canvas.height) / 2 - 20; // Adjust for padding
+            const sliceAngle = (2 * Math.PI) / options.length;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            options.forEach((option, index) => {
+                const startAngle = index * sliceAngle - Math.PI / 2; // Start from top (12 o'clock)
+                const endAngle = startAngle + sliceAngle;
+                const color = `hsl(${index * 360 / options.length}, 70%, 50%)`;
+
+                // Draw slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.closePath();
+
+                // Draw text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.fillStyle = 'white';
+                ctx.font = `16px Arial`;
+                ctx.textAlign = 'right';
+                const textWidth = ctx.measureText(option).width;
+                ctx.fillText(option, radius - 10 - (textWidth > radius ? textWidth / 2 : 0), 5);
+                ctx.restore();
+            });
+
+            // Draw center circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function spinWheel() {
+            if (options.length < 2 || isSpinning) return;
+
+            isSpinning = true;
+            const spinButton = document.getElementById('spinButton');
+            spinButton.disabled = true;
+            const result = document.getElementById('result');
+            result.textContent = 'Spinning...';
+
+            const randomAngle = Math.floor(Math.random() * 360) + 720; // At least 2 full spins
+            canvas.style.transform = `rotate(${randomAngle}deg)`;
+
+            setTimeout(() => {
+                const finalAngle = randomAngle % 360;
+                const sliceAngle = 360 / options.length;
+                // Correctly calculate the winner based on the arrow at the top (0 degrees)
+                const normalizedAngle = (360 - finalAngle) % 360; // Normalize to 0-359
+                const winnerIndex = Math.floor(normalizedAngle / sliceAngle) % options.length;
+                result.textContent = `Result: ${options[winnerIndex]}`;
+                isSpinning = false;
+                spinButton.disabled = false;
+            }, 4000); // Match transition duration (4s)
+        }
+
+        // Allow Enter key to add options
+        document.getElementById('optionInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addOption();
+            }
+        });
+    </script>
+</body>
+</html>
